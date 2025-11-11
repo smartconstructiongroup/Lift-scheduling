@@ -1,3 +1,4 @@
+
 using CPLEX;
  //Parameters
 int M=...; //Big Number
@@ -28,7 +29,7 @@ float C[m in N]=...; //Max (w,v)Capacity of lift just for material m
 float f[m in N]=...; // time for unloading material m in floor i
 float D[i in I][m in N]=...; //Demand of material m at floor i
 {int} Q[i in I]={j | j in I: j<=i };
-int e[i in I][m in N]=...;
+int e[i in I][m in N]=...;  //Critical time for material delivery
 
 
 
@@ -41,46 +42,41 @@ int e[i in I][m in N]=...;
 
 
  /////////////////Decision Variable1/////////////////////// 
- dvar boolean x[i in I][m in N][l in R]; //Material (m) dar tabaghe (i) unload shavad ya na
- dvar boolean z[i in I][l in R]; //dar dour (l) tabaghe (i) ra bebinim ya na
- dvar float+ u[i in I][m in N][l in R]; // meghdar material unload shode (m) dar tabaghe (i) dar dour(l) 
- dvar int+ u1[i in I][m in Material_1][l in R]; // integer material
- dvar float+ u2[i in I][m in Material_2][l in R]; //float material
- dvar float+ T[1..Nl]; //lahzeye shoroe doure (l)
- dvar float+ t[i in I0][l in R]; //lahzeye residan lift be tabagheye (i) dar dour (l)
- dvar float+ J[i in I][l in R]; //komaki
- dvar float+ K[i in I][m in N][l in R]; //komaki
- dvar float+ h[i in I][m in N][l in R]; //komaki
- dvar float+ g[i in I][m in N][l in R]; //komaki
+ dvar boolean x[i in I][m in N][l in R]; 
+ dvar boolean z[i in I][l in R]; 
+ dvar float+ u[i in I][m in N][l in R];  
+ dvar int+ u1[i in I][m in Material_1][l in R]; 
+ dvar float+ u2[i in I][m in Material_2][l in R]; 
+ dvar float+ T[1..Nl]; 
+ dvar float+ t[i in I0][l in R]; 
+ dvar float+ J[i in I][l in R]; 
+ dvar float+ K[i in I][m in N][l in R]; 
+ dvar float+ h[i in I][m in N][l in R]; 
  dvar boolean ff[l in R]; //
  dvar float+ b[l in R]; // 
- dvar float+ P[l in R]; // jarimeye faaliyat dar shifte shab
- dvar boolean o[i in I][m in N]; //agar zamane tahvile material az zamane bohrani bishtar bashad 1 else 0
- dvar float+ kk[i in I][m in N]; //jarimeye takhati az zamane bohrani(bar hasbe zaman)
- dvar float+ o1[i in I][m in N][l in R]; //komaki
- dvar float+ o2[i in I][m in N][l in R];
- dvar boolean PU[i in I][m in N]; // jarime baraye adame rafe kamele taghaza
+ dvar float+ P[l in R]; 
+ dvar float+ kk[i in I][m in N]; 
+ dvar boolean PU[i in I][m in N]; 
 
  
  /////////////////////////////////Objective Function////////////////////////////////
    
  dexpr float Z1 = 
- sum(m in N,i in I,l in R)f[m]*u[i][m][l];
- dexpr int Z2=
- sum(i in I,l in R)z[i][l];
+ 2*sum(m in N,i in I,l in R)f[m]*u[i][m][l];
+ dexpr float Z2=
+ 2*r*sum(i in I,l in R)z[i][l];
  dexpr float Z3=
  sum(i in I, m in N)kk[i][m];
  dexpr float Z4=
  sum(l in R)P[l];
   dexpr float Z5=
- sum(i in I,m in N)PU[i][m]*f[m];
+ sum(i in I,m in N)PU[i][m]*f[m]*D[i][m];
  
  
- minimize Z1 + Z2*2*r + Z3 + Z4 + Z5*M;
+ minimize 0.083*Z1 + 0.083*Z2 + 0.833*Z3 + 0.166*Z4 + 100*Z5;
  
  subject to 
  {
-
  forall(i in I, m in Material_1, l in R)
   Const1:
   u1[i][m][l] == u[i][m][l];
@@ -104,8 +100,8 @@ u2[i][m][l] == u[i][m][l];
   
 ///////////////////////////////////////////////////
 
+
   
-/////////////////////////////////////////////////////
 
 forall(l in R)                    
  Const5:                                     //Capacity constraint
@@ -126,22 +122,19 @@ forall(l in R)
  forall(i in I,m in N)                   
    D[i][m] - sum(l in R)u[i][m][l] <= PU[i][m]*D[i][m];
 
-   
-   
+      
     
       
-////////////////////////////////////////////////////
  
- forall(l in 2..Nl)                               //lahzeye shoroe dore jadid barabar ast ba majmooe zaman dorhaye ghabli
+ forall(l in 2..Nl)                               
   Const8:
-   T[l] >= T[l-1] +sum(m in N, i in I)f[m]*u[i][m][l-1]+sum(i in I)2*r*z[i][l-1] + t[0][l-1]  ;  //zamane barghasht ham mohasebe shode
+   T[l] == T[l-1] +sum(m in N, i in I)f[m]*u[i][m][l-1]+sum(i in I)2*r*z[i][l-1] + t[0][l-1]  ;  //zamane barghasht ham mohasebe shode
 
 ////////////////////////////////////////////////////
  
  forall(i in 1..Ni,l in R)         
   Const9:
- //////t[i][l] >= (t[i-1][l] + sum(m in N)f[m]*u[i][m][l] +r)*z[i][l] 
- t[i][l] >= J[i][l]+sum(m in N)f[m]*K[i][m][l]+r*z[i][l];
+ t[i][l] == J[i][l]+sum(m in N)f[m]*K[i][m][l]+r*z[i][l];
    
 //////////////////////////////////////////////////
  
@@ -200,29 +193,17 @@ forall(l in R)
      
  /////////////////////////////////////
   
-  forall(l in R)                   //modat zamane lazem baraye load kardane material mohasebe shavad
+  forall(l in R)                   
     Const19:
        t[0][l] == sum(m in N,j in I)f[m]*u[j][m][l];
 
 ///////////////////////////////////  Critical Time Constraint
 
-forall(m in N,i in I,l in R) //mahdudiate zamane bohrani
-  Const20:
-    e[i][m]-(h[i][m][l]+g[i][m][l]) <= Mt*(1-o[i][m]);
 
-////////////////////////////////////
- 
- forall(m in N,i in I,l in R)
-  Const21:
- (h[i][m][l]+g[i][m][l]) <= e[i][m]+Mt*o[i][m];
-  
-/////////////////////////////////////////////
 
 forall(m in N,i in I,l in R)
-  Const22:
-   h[i][m][l] <= t[i][l];
+   h[i][m][l] <= T[l] + t[i][l];
 
-////////////////////////////////////
 
 forall(m in N,i in I,l in R)
  Const23:
@@ -231,108 +212,35 @@ forall(m in N,i in I,l in R)
 /////////////////////////////////
 
 forall(m in N,i in I,l in R)
- Const24:
-   h[i][m][l] >= t[i][l] - Mt*(1-x[i][m][l]) ;
+   h[i][m][l] >= (T[l] + t[i][l]) - Mt*(1-x[i][m][l]) ;
 
-///////////////////////////////////
 
-forall(m in N,i in I,l in R)
-  Const25:
-   g[i][m][l] <= T[l];
+forall(i in I , m in N, l in R)           
+    kk[i][m] >= h[i][m][l] - e[i][m];
 
-/////////////////////////////////
- 
- forall(m in N,i in I,l in R)
-   Const26:
-    g[i][m][l] <= x[i][m][l]*Mt;
-
-///////////////////////////////////
-
- forall(m in N,i in I,l in R)
-   Const27:   
-   g[i][m][l] >= T[l] -Mt*(1-x[i][m][l]);
-
-/////////////////////////////////////
-
-forall(i in I, m in N)        
-Const28:                   //jarimeye takhati az zamane bohrani
- kk[i][m] <= Mt*o[i][m];
   
-///////////////////////////////////////////
 
-forall(i in I , m in N )            // dar nazar gereftane jarimeye takhati az zamane bohrani bar hasbe ekhtelafe zaman
- Const29:
-    kk[i][m] >= sum(l in R)((o1[i][m][l] + o2[i][m][l])-o[i][m]*e[i][m]);
-  
-//////////////////////////////////////////
-
-forall(i in I ,m in N, l in R)  
- Const30:
-  o1[i][m][l] <= o[i][m]*Mt;
-
-////////////////////////////////////
-
-forall(m in N, i in I, l in R)
-  Const31:
-   o1[i][m][l] <= h[i][m][l];
- 
-// ///////////////////////////////
- 
-forall(m in N, i in I, l in R)
- Const32:
-  o1[i][m][l] >= h[i][m][l] -Mt*(1-o[i][m]) ;
- 
-//////////////////////////////////
-
-forall(m in N, i in I, l in R)
- Const33:
-  o2[i][m][l] <= o[i][m]*Mt;
-
-/////////////////////////////////
-
-forall(m in N, i in I, l in R)
- Const34:
-  o2[i][m][l] <= g[i][m][l];
-
-//////////////////////////////
-
-forall(m in N, i in I, l in R)
- Const35:
-  o2[i][m][l] >= g[i][m][l] -Mt*(1-o[i][m]); 
-
-///////////////////////////////   
 
 forall(l in R)
   Const36:
-   b[l]>=sum(m in N, i in I)f[m]*u[i][m][l]+sum(i in I)2*r*z[i][l] + t[0][l];
-/////////////////////////////// 
+   b[l]==sum(m in N, i in I)f[m]*u[i][m][l]+sum(i in I)2*r*z[i][l] + t[0][l];
 
-  
-////////////////////////////
   
 forall(l in R)
   Const40:
    F-T[l] <= Mt*ff[l];
    
-///////////////////////////
 
 forall(l in R)    
   Const41:
    T[l]-F <= Mt*(1-ff[l]);
    
-//////////////////////////
 
 forall(l in R)
   Const42:
-     P[l] >= b[l]-Mt*(1-ff[l]);
-////////////////////////////////
+     P[l] >= b[l]-Mt*(1-ff[l]);  
 
- forall(l in R)
-  Const43:
-   sum(m in N,i in I)x[i][m][l] >= 1; //doure khali ejad nashavad
-
-
-
+ 
 
 
 forall(l in R0)
@@ -340,7 +248,9 @@ forall(l in R0)
 
 
 
-
 } 
+
+
+
 
 
